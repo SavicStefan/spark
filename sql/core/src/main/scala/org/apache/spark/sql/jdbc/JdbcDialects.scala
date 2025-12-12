@@ -784,7 +784,7 @@ abstract class JdbcDialect extends Serializable with Logging {
 
   @Since("4.1.0")
   def isObjectNotFoundException(e: SQLException): Option[Boolean] = {
-    isSyntaxErrorBestEffort(e)
+    Option(e.getSQLState).map(_.startsWith("42"))
   }
 
   /**

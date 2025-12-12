@@ -70,7 +70,7 @@ private case class DerbyDialect() extends JdbcDialect with NoLegacyJDBCError {
 
   // See https://db.apache.org/derby/docs/10.15/ref/rrefexcept71493.html
   override def isSyntaxErrorBestEffort(exception: SQLException): Option[Boolean] = {
-    Some(Option(exception.getSQLState).exists(_.startsWith("42")))
+    Option(exception.getSQLState).map(_.startsWith("42"))
   }
 
   // See https://db.apache.org/derby/docs/10.15/ref/rrefsqljrenametablestatement.html

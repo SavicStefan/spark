@@ -55,7 +55,7 @@ private case class DatabricksDialect() extends JdbcDialect with NoLegacyJDBCErro
 
   // See https://docs.databricks.com/aws/en/error-messages/sqlstates
   override def isSyntaxErrorBestEffort(exception: SQLException): Option[Boolean] = {
-    Some(Option(exception.getSQLState).exists(_.startsWith("42")))
+    Option(exception.getSQLState).map(_.startsWith("42"))
   }
 
   override def quoteIdentifier(colName: String): String = {

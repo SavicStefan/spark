@@ -57,7 +57,7 @@ private case class TeradataDialect() extends JdbcDialect with NoLegacyJDBCError 
   // See https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/SQL-Stored-Procedures-and-Embedded-SQL/SQLSTATE-Mappings/SQLSTATE-Codes
   // scalastyle:on line.size.limit
   override def isSyntaxErrorBestEffort(exception: SQLException): Option[Boolean] = {
-    Some(Option(exception.getSQLState).exists(_.startsWith("42")))
+    Option(exception.getSQLState).map(_.startsWith("42"))
   }
 
   /**
