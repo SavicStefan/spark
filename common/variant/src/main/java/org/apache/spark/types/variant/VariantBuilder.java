@@ -213,8 +213,9 @@ public class VariantBuilder {
    * picks one encoding per value, so that values which are equal under the variant equality rules
    * have identical {@code value} and {@code metadata} bytes and can be compared, hashed and
    * grouped bytewise. It is a Spark-internal normalization, not part of the variant spec, and
-   * nothing outside Spark is expected to produce or require it. Only valid variants are supported;
-   * malformed bytes fail with {@code MALFORMED_VARIANT} where they are detected.
+   * nothing outside Spark is expected to produce or require it. Only valid variants are supported.
+   * Malformed bytes fail with {@code MALFORMED_VARIANT} where they are detected; repeated field
+   * names within an object fail with {@code VARIANT_DUPLICATE_KEY}.
    * <p>
    * A variant is canonical when its {@code metadata} and {@code value} satisfy all of the following
    * rules. The scalar and container encoding rules apply recursively to every nested value.
@@ -260,6 +261,9 @@ public class VariantBuilder {
    * new root value with its own metadata. {@code isCanonical} checks exactly these rules and
    * {@code doCanonicalize} produces them; the two must be changed together when a rule changes or
    * a type is added to the spec.
+   *
+   * @throws VariantSizeLimitException if the rebuilt value or metadata would exceed
+   * {@link VariantUtil#SIZE_LIMIT}.
    */
   public static Variant canonicalize(Variant v) {
     if (isCanonical(v)) {
@@ -857,16 +861,29 @@ public class VariantBuilder {
           int start = writePos;
           Integer[] fieldOrder = null;
           if (canonicalIds != null && size > 1) {
-            fieldOrder = new Integer[size];
-            int[] newIds = new int[size];
+            // Canonical IDs follow key order. Only sort if the remapped IDs are out of order.
+            boolean needsSort = false;
+            int previousId = -1;
             for (int fieldIndex = 0; fieldIndex < size; ++fieldIndex) {
-              fieldOrder[fieldIndex] = fieldIndex;
               int keyId = readUnsigned(value, idStart + idSize * fieldIndex, idSize);
-              newIds[fieldIndex] = canonicalIds[keyId];
+              int newId = canonicalIds[keyId];
+              if (newId < previousId) {
+                needsSort = true;
+                break;
+              }
+              previousId = newId;
             }
-            // Write values in key order; finishWritingObject only sorts the header entries.
-            // `buildCanonicalized` adds the keys in sorted order, so new IDs follow key order.
-            Arrays.sort(fieldOrder, (left, right) -> Integer.compare(newIds[left], newIds[right]));
+            if (needsSort) {
+              fieldOrder = new Integer[size];
+              int[] newIds = new int[size];
+              for (int fieldIndex = 0; fieldIndex < size; ++fieldIndex) {
+                fieldOrder[fieldIndex] = fieldIndex;
+                int keyId = readUnsigned(value, idStart + idSize * fieldIndex, idSize);
+                newIds[fieldIndex] = canonicalIds[keyId];
+              }
+              Arrays.sort(fieldOrder,
+                  (left, right) -> Integer.compare(newIds[left], newIds[right]));
+            }
           }
           for (int fieldIndex = 0; fieldIndex < size; ++fieldIndex) {
             int sourceIndex = fieldOrder == null ? fieldIndex : fieldOrder[fieldIndex];

@@ -227,6 +227,10 @@ class VariantCanonicalizeSuite extends AnyFunSuite { // scalastyle:ignore funsui
     val expectedValue = array(Seq(
       obj(Seq(0 -> integer(1))), obj(Seq(0 -> integer(2))), obj(Seq(1 -> integer(3)))))
     check(new Variant(sourceValue, sourceMetadata), expectedValue, dictionary("a", "b"))
+    // A sorted dictionary isolates the duplicate-name check.
+    check(new Variant(array(Seq(obj(Seq(0 -> integer(1))), obj(Seq(1 -> integer(2))))),
+      dictionary("a", "a")),
+      array(Seq(obj(Seq(0 -> integer(1))), obj(Seq(0 -> integer(2))))), dictionary("a"))
     // A scalar root keeps no keys at all.
     check(new Variant(integer(1), sourceMetadata), integer(1))
     // The empty key is a key like any other.
@@ -248,6 +252,9 @@ class VariantCanonicalizeSuite extends AnyFunSuite { // scalastyle:ignore funsui
       check(new Variant(obj(fields), metadata(Seq(supplementaryKey, bmpKey))),
         expectedValue, expectedMetadata)
     }
+    // A sorted dictionary isolates the legacy field-order check.
+    check(new Variant(obj(Seq(1 -> integer(20), 0 -> integer(10))), expectedMetadata),
+      expectedValue, expectedMetadata)
     // Multi-byte keys keep their bytes: "cafe" < "caf" U+00E9 (C3 A9) < U+4F60 (E4 BD A0).
     check(new Variant(obj(Seq(2 -> integer(1), 1 -> integer(2), 0 -> integer(3))),
       dictionary("\u4f60", "caf\u00e9", "cafe")),
